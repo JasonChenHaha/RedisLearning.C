@@ -103,7 +103,7 @@ sds sdsnewlen(const void *init, size_t initlen) {
         memset(sh, 0, hdrlen+initlen+1);
     if (sh == NULL) return NULL;
     s = (char*)sh+hdrlen;
-    fp = ((unsigned char*)s)-1;
+    fp = ((unsigned char*)s)-1; //获得flags地址
     switch(type) {
         case SDS_TYPE_5: {
             *fp = type | (initlen << SDS_TYPE_BITS);
@@ -344,6 +344,7 @@ void sdsIncrLen(sds s, ssize_t incr) {
         }
         case SDS_TYPE_8: {
             SDS_HDR_VAR(8,s);
+            // 检查len大于incr绝对值的作用是防止扣除的时候计算出来len小于0
             assert((incr >= 0 && sh->alloc-sh->len >= incr) || (incr < 0 && sh->len >= (unsigned int)(-incr)));
             len = (sh->len += incr);
             break;
@@ -447,6 +448,7 @@ sds sdscpy(sds s, const char *t) {
  * The function returns the length of the null-terminated string
  * representation stored at 's'. */
 #define SDS_LLSTR_SIZE 21
+// 把数字value转成字符串s
 int sdsll2str(char *s, long long value) {
     char *p, aux;
     unsigned long long v;
@@ -479,6 +481,7 @@ int sdsll2str(char *s, long long value) {
 }
 
 /* Identical sdsll2str(), but for unsigned long long type. */
+// 把数字value转成字符串s
 int sdsull2str(char *s, unsigned long long v) {
     char *p, aux;
     size_t l;
@@ -820,6 +823,7 @@ sds *sdssplitlen(const char *s, ssize_t len, const char *sep, int seplen, int *c
 
     if (seplen < 1 || len < 0) return NULL;
 
+    // 首先申请内存批量存放sds指针
     tokens = s_malloc(sizeof(sds)*slots);
     if (tokens == NULL) return NULL;
 
@@ -829,6 +833,7 @@ sds *sdssplitlen(const char *s, ssize_t len, const char *sep, int seplen, int *c
     }
     for (j = 0; j < (len-(seplen-1)); j++) {
         /* make sure there is room for the next element and the final one */
+        // 当切分数量超过预期，重新申请2倍原大小内存
         if (slots < elements+2) {
             sds *newtokens;
 

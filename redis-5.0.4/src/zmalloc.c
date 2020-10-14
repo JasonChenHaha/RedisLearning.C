@@ -71,6 +71,7 @@ void zlibc_free(void *ptr) {
 #define dallocx(ptr,flags) je_dallocx(ptr,flags)
 #endif
 
+// 按8字节对齐
 #define update_zmalloc_stat_alloc(__n) do { \
     size_t _n = (__n); \
     if (_n&(sizeof(long)-1)) _n += sizeof(long)-(_n&(sizeof(long)-1)); \
@@ -103,6 +104,7 @@ void *zmalloc(size_t size) {
     update_zmalloc_stat_alloc(zmalloc_size(ptr));
     return ptr;
 #else
+    // 头部存储内存大小
     *((size_t*)ptr) = size;
     update_zmalloc_stat_alloc(size+PREFIX_SIZE);
     return (char*)ptr+PREFIX_SIZE;
@@ -113,6 +115,7 @@ void *zmalloc(size_t size) {
  * and go straight to the allocator arena bins.
  * Currently implemented only for jemalloc. Used for online defragmentation. */
 #ifdef HAVE_DEFRAG
+// 不使用缓存直接分配内存
 void *zmalloc_no_tcache(size_t size) {
     void *ptr = mallocx(size+PREFIX_SIZE, MALLOCX_TCACHE_NONE);
     if (!ptr) zmalloc_oom_handler(size);
@@ -239,6 +242,7 @@ void zmalloc_set_oom_handler(void (*oom_handler)(size_t)) {
 #include <sys/stat.h>
 #include <fcntl.h>
 
+// 获取进程实际内存大小
 size_t zmalloc_get_rss(void) {
     int page = sysconf(_SC_PAGESIZE);
     size_t rss;
@@ -247,6 +251,8 @@ size_t zmalloc_get_rss(void) {
     int fd, count;
     char *p, *x;
 
+    // 读取进程实际使用物理内存页数rss
+    // 内存 = rss * page(页大小)
     snprintf(filename,256,"/proc/%d/stat",getpid());
     if ((fd = open(filename,O_RDONLY)) == -1) return 0;
     if (read(fd,buf,4096) <= 0) {
@@ -314,12 +320,15 @@ int zmalloc_get_allocator_info(size_t *allocated,
     sz = sizeof(size_t);
     /* Unlike RSS, this does not include RSS from shared libraries and other non
      * heap mappings. */
+    // Maximum number of bytes in physically resident data pages mapped by the allocator, comprising all pages dedicated to allocator metadata, pages backing active allocations, and unused dirty pages.
     je_mallctl("stats.resident", resident, &sz, NULL, 0);
     /* Unlike resident, this doesn't not include the pages jemalloc reserves
      * for re-use (purge will clean that). */
+    // Total number of bytes in active pages allocated by the application.
     je_mallctl("stats.active", active, &sz, NULL, 0);
     /* Unlike zmalloc_used_memory, this matches the stats.resident by taking
      * into account all allocations done by this process (not only zmalloc). */
+    // total number of bytes allocated by the application
     je_mallctl("stats.allocated", allocated, &sz, NULL, 0);
     return 1;
 }

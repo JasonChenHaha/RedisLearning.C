@@ -40,8 +40,10 @@ const char *SDS_NOINIT;
 #include <stdarg.h>
 #include <stdint.h>
 
+// 注意:sds是sdshdr结构体的buf指针
 typedef char *sds;
 
+// hdr -> header
 /* Note: sdshdr5 is never used, we just access the flags byte directly.
  * However is here to document the layout of type 5 SDS strings. */
 struct __attribute__ ((__packed__)) sdshdr5 {
@@ -84,6 +86,7 @@ struct __attribute__ ((__packed__)) sdshdr64 {
 #define SDS_HDR(T,s) ((struct sdshdr##T *)((s)-(sizeof(struct sdshdr##T))))
 #define SDS_TYPE_5_LEN(f) ((f)>>SDS_TYPE_BITS)
 
+// 传进来buf指针，向前偏移得到结构体首地址，然后得到len值
 static inline size_t sdslen(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -101,6 +104,7 @@ static inline size_t sdslen(const sds s) {
     return 0;
 }
 
+// 获得剩余可用空间长度
 static inline size_t sdsavail(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -132,6 +136,7 @@ static inline void sdssetlen(sds s, size_t newlen) {
     switch(flags&SDS_TYPE_MASK) {
         case SDS_TYPE_5:
             {
+                // type5的len信息保存在flags里面
                 unsigned char *fp = ((unsigned char*)s)-1;
                 *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
             }
@@ -215,18 +220,30 @@ static inline void sdssetalloc(sds s, size_t newlen) {
     }
 }
 
+// 创建一个sdshdr,将init字符串中initlen长度的数据复制进去
 sds sdsnewlen(const void *init, size_t initlen);
+// 创建一个sdshdr,将init字符串完整复制进去
 sds sdsnew(const char *init);
+// 创建一个空的sdshdr
 sds sdsempty(void);
+// 复制一个sdshdr
 sds sdsdup(const sds s);
+// 回收sdshdr
 void sdsfree(sds s);
+// 把sds长度扩充为len,用0填充新增长度
 sds sdsgrowzero(sds s, size_t len);
+// 把t指向的内存拷贝len长度到sds尾部
 sds sdscatlen(sds s, const void *t, size_t len);
+// 把t指向的全部内存拷贝到sds尾部
 sds sdscat(sds s, const char *t);
+// 把t拷贝到s尾部
 sds sdscatsds(sds s, const sds t);
+// 把t指向的len长度的数据覆盖sds
 sds sdscpylen(sds s, const char *t, size_t len);
+// 把t指向的数据全部覆盖sds
 sds sdscpy(sds s, const char *t);
 
+// 用格式化字符串方式把数据填入sds
 sds sdscatvprintf(sds s, const char *fmt, va_list ap);
 #ifdef __GNUC__
 sds sdscatprintf(sds s, const char *fmt, ...)
@@ -235,28 +252,48 @@ sds sdscatprintf(sds s, const char *fmt, ...)
 sds sdscatprintf(sds s, const char *fmt, ...);
 #endif
 
+// 作用同上，不过内部直接实现了sprintf功能，所以速度更快
+// 缺点是只支持固定几种格式
 sds sdscatfmt(sds s, char const *fmt, ...);
+// 利用cset表示的字符集，剔除sds左右两端的对应字符
 sds sdstrim(sds s, const char *cset);
+// 用sds的指定范围子串覆盖sds本身
 void sdsrange(sds s, ssize_t start, ssize_t end);
+// 如果sds中间有\0字符，刷新sdshdr->len=strlen()
 void sdsupdatelen(sds s);
+// 清空sds数据,但不回收
 void sdsclear(sds s);
+// 比较两个sds内容是否相同
 int sdscmp(const sds s1, const sds s2);
+// 把s字符串按sep格式切分合成sds数组
 sds *sdssplitlen(const char *s, ssize_t len, const char *sep, int seplen, int *count);
+// 把sds数组销毁
 void sdsfreesplitres(sds *tokens, int count);
 void sdstolower(sds s);
 void sdstoupper(sds s);
+// 把数字转成sds
 sds sdsfromlonglong(long long value);
+// 往sds后面拼接字符串,如果包含转义字符,将其转成文本
 sds sdscatrepr(sds s, const char *p, size_t len);
+// 把line字符串按空格分割合成sds数组,argc赋值为sds数量
 sds *sdssplitargs(const char *line, int *argc);
+// 在sds中把from匹配到的字符用to对应位置的字符替换
 sds sdsmapchars(sds s, const char *from, const char *to, size_t setlen);
+// 把argv字符串数组中的字符串用sep字符作为分隔符拼接起来
 sds sdsjoin(char **argv, int argc, char *sep);
+// 同上，拼接的是sds
 sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen);
 
 /* Low level functions exposed to the user API */
+// 在sds中预留addlen的未使用空间
 sds sdsMakeRoomFor(sds s, size_t addlen);
+// 根据incr参数直接拉长或者缩短sdshdr->len
 void sdsIncrLen(sds s, ssize_t incr);
+// 回收sds中已申请但未使用的空间
 sds sdsRemoveFreeSpace(sds s);
+// 获得sdshdr开辟内存总大小
 size_t sdsAllocSize(sds s);
+// 获得sdshdr指针
 void *sdsAllocPtr(sds s);
 
 /* Export the allocator used by SDS to the program using SDS.
