@@ -189,11 +189,13 @@ int dictRehash(dict *d, int n) {
     int empty_visits = n*10; /* Max number of empty buckets to visit. */
     if (!dictIsRehashing(d)) return 0;
 
+    // 一次循环移动一条链
     while(n-- && d->ht[0].used != 0) {
         dictEntry *de, *nextde;
 
         /* Note that rehashidx can't overflow as we are sure there are more
          * elements because ht[0].used != 0 */
+        // 探测table数组的首个有效位置
         assert(d->ht[0].size > (unsigned long)d->rehashidx);
         while(d->ht[0].table[d->rehashidx] == NULL) {
             d->rehashidx++;
@@ -201,20 +203,24 @@ int dictRehash(dict *d, int n) {
         }
         de = d->ht[0].table[d->rehashidx];
         /* Move all the keys in this bucket from the old to the new hash HT */
+        // 移动改有效位置的整条链到[1]中
         while(de) {
             uint64_t h;
 
             nextde = de->next;
             /* Get the index in the new hash table */
+            // &的目的是为了保证哈希出来的下标落在[0-size-1]内
             h = dictHashKey(d, de->key) & d->ht[1].sizemask;
+            // 把元素拼到链的头部
             de->next = d->ht[1].table[h];
             d->ht[1].table[h] = de;
             d->ht[0].used--;
             d->ht[1].used++;
             de = nextde;
         }
+        // 链头所在的坑位置空
         d->ht[0].table[d->rehashidx] = NULL;
-        d->rehashidx++;
+        d->rehashidx++; // 从下一个坑位继续探测
     }
 
     /* Check if we already rehashed the whole table... */
@@ -257,6 +263,7 @@ int dictRehashMilliseconds(dict *d, int ms) {
  * This function is called by common lookup or update operations in the
  * dictionary so that the hash table automatically migrates from H1 to H2
  * while it is actively used. */
+// 该转移函数被分摊到其他常用操作里面，降低成本
 static void _dictRehashStep(dict *d) {
     if (d->iterators == 0) dictRehash(d,1);
 }
@@ -565,14 +572,18 @@ dictEntry *dictNext(dictIterator *iter)
         if (iter->entry == NULL) {
             dictht *ht = &iter->d->ht[iter->table];
             if (iter->index == -1 && iter->table == 0) {
+                // 首次进入
                 if (iter->safe)
                     iter->d->iterators++;
                 else
+                    // 生成指纹
                     iter->fingerprint = dictFingerprint(iter->d);
             }
             iter->index++;
             if (iter->index >= (long) ht->size) {
+                // 到达尾部
                 if (dictIsRehashing(iter->d) && iter->table == 0) {
+                    // 如果[1]还有数据，转而遍历[1]
                     iter->table++;
                     iter->index = 0;
                     ht = &iter->d->ht[1];
@@ -696,6 +707,7 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count) {
     unsigned long i = random() & maxsizemask;
     unsigned long emptylen = 0; /* Continuous empty entries so far. */
     while(stored < count && maxsteps--) {
+        // 每次遍历，从[0]和[1]中各取一个
         for (j = 0; j < tables; j++) {
             /* Invariant of the dict.c rehashing: up to the indexes already
              * visited in ht[0] during the rehashing, there are no populated
@@ -705,6 +717,8 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count) {
                  * table, there will be no elements in both tables up to
                  * the current rehashing index, so we jump if possible.
                  * (this happens when going from big to small table). */
+                // 如果下标超过了[1]的最大值，意味着都要从[0]中取得，
+                // 这个时候把i跳过reshashidx前面的无效区域，尽量多取一点
                 if (i >= d->ht[1].size)
                     i = d->rehashidx;
                 else
@@ -741,6 +755,7 @@ unsigned int dictGetSomeKeys(dict *d, dictEntry **des, unsigned int count) {
 
 /* Function to reverse bits. Algorithm from:
  * http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel */
+// 把v按位反转
 static unsigned long rev(unsigned long v) {
     unsigned long s = 8 * sizeof(v); // bit size; must be power of 2
     unsigned long mask = ~0;
@@ -835,6 +850,8 @@ static unsigned long rev(unsigned long v) {
  * 3) The reverse cursor is somewhat hard to understand at first, but this
  *    comment is supposed to help.
  */
+// 
+// 计算思路参考https://blog.csdn.net/gqtcgq/article/details/50533336
 unsigned long dictScan(dict *d,
                        unsigned long v,
                        dictScanFunction *fn,
@@ -852,14 +869,17 @@ unsigned long dictScan(dict *d,
         m0 = t0->sizemask;
 
         /* Emit entries at cursor */
+        // 哈希之后找到对应的桶子
         if (bucketfn) bucketfn(privdata, &t0->table[v & m0]);
         de = t0->table[v & m0];
+        // 遍历桶子直到链表尾
         while (de) {
             next = de->next;
             fn(privdata, de);
             de = next;
         }
 
+        // 计算将要返回的下一次遍历的位置
         /* Set unmasked bits so incrementing the reversed cursor
          * operates on the masked bits */
         v |= ~m0;
@@ -960,6 +980,7 @@ static unsigned long _dictNextPower(unsigned long size)
  *
  * Note that if we are in the process of rehashing the hash table, the
  * index is always returned in the context of the second (new) hash table. */
+// 在dict里面找到空闲的位置idx，如果有重名的key，把用existing指向它
 static long _dictKeyIndex(dict *d, const void *key, uint64_t hash, dictEntry **existing)
 {
     unsigned long idx, table;

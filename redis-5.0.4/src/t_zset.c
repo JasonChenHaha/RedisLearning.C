@@ -103,6 +103,7 @@ void zslFreeNode(zskiplistNode *node) {
 }
 
 /* Free a whole skiplist. */
+// 为什么只需要释放最底层链表呢?
 void zslFree(zskiplist *zsl) {
     zskiplistNode *node = zsl->header->level[0].forward, *next;
 
@@ -119,6 +120,7 @@ void zslFree(zskiplist *zsl) {
  * The return value of this function is between 1 and ZSKIPLIST_MAXLEVEL
  * (both inclusive), with a powerlaw-alike distribution where higher
  * levels are less likely to be returned. */
+// 返回一个随机的level值,越高值概率越低
 int zslRandomLevel(void) {
     int level = 1;
     while ((random()&0xFFFF) < (ZSKIPLIST_P * 0xFFFF))
@@ -138,6 +140,7 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, sds ele) {
     x = zsl->header;
     for (i = zsl->level-1; i >= 0; i--) {
         /* store rank that is crossed to reach the insert position */
+        // rank通过累加节点跳过的节点数来表示当前插入点的排名(离头部的距离)
         rank[i] = i == (zsl->level-1) ? 0 : rank[i+1];
         while (x->level[i].forward &&
                 (x->level[i].forward->score < score ||
@@ -147,6 +150,7 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, sds ele) {
             rank[i] += x->level[i].span;
             x = x->level[i].forward;
         }
+        // update记录每层要更新的位置节点
         update[i] = x;
     }
     /* we assume the element is not already inside, since we allow duplicated
@@ -155,6 +159,7 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, sds ele) {
      * already inside or not. */
     level = zslRandomLevel();
     if (level > zsl->level) {
+        // 将随机level超出现有高度的楼层初始化
         for (i = zsl->level; i < level; i++) {
             rank[i] = 0;
             update[i] = zsl->header;
@@ -163,6 +168,7 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, sds ele) {
         zsl->level = level;
     }
     x = zslCreateNode(level,score,ele);
+    // 把创建的楼竖直插入
     for (i = 0; i < level; i++) {
         x->level[i].forward = update[i]->level[i].forward;
         update[i]->level[i].forward = x;
@@ -194,6 +200,7 @@ void zslDeleteNode(zskiplist *zsl, zskiplistNode *x, zskiplistNode **update) {
             update[i]->level[i].span += x->level[i].span - 1;
             update[i]->level[i].forward = x->level[i].forward;
         } else {
+            // 没有覆盖到的楼上全部减1
             update[i]->level[i].span -= 1;
         }
     }
@@ -202,6 +209,7 @@ void zslDeleteNode(zskiplist *zsl, zskiplistNode *x, zskiplistNode **update) {
     } else {
         zsl->tail = x->backward;
     }
+    // 如果删除节点导致楼上全部为空，有效楼层逐级减1
     while(zsl->level > 1 && zsl->header->level[zsl->level-1].forward == NULL)
         zsl->level--;
     zsl->length--;
@@ -219,6 +227,7 @@ int zslDelete(zskiplist *zsl, double score, sds ele, zskiplistNode **node) {
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     int i;
 
+    // 自上而下遍历找到每一层楼的删除点
     x = zsl->header;
     for (i = zsl->level-1; i >= 0; i--) {
         while (x->level[i].forward &&
@@ -299,15 +308,18 @@ zskiplistNode *zslUpdateScore(zskiplist *zsl, double curscore, sds ele, double n
     return newnode;
 }
 
+// 下界判定进入
 int zslValueGteMin(double value, zrangespec *spec) {
     return spec->minex ? (value > spec->min) : (value >= spec->min);
 }
 
+// 上界判定进入
 int zslValueLteMax(double value, zrangespec *spec) {
     return spec->maxex ? (value < spec->max) : (value <= spec->max);
 }
 
 /* Returns if there is a part of the zset is in range. */
+// 判断跳表数据范围是否落在range范围内
 int zslIsInRange(zskiplist *zsl, zrangespec *range) {
     zskiplistNode *x;
 
@@ -397,6 +409,8 @@ unsigned long zslDeleteRangeByScore(zskiplist *zsl, zrangespec *range, dict *dic
     x = x->level[0].forward;
 
     /* Delete nodes while in range. */
+    // 当首个元素节点动过楼层下降方式找到之后，从这个节点开始，
+    // 顺序遍历删除，直到超过range上界为止
     while (x &&
            (range->maxex ? x->score < range->max : x->score <= range->max))
     {

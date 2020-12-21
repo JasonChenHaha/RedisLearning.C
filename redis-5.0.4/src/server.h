@@ -802,10 +802,11 @@ typedef struct zskiplistNode {
     struct zskiplistNode *backward;
     struct zskiplistLevel {
         struct zskiplistNode *forward;
-        unsigned long span;
+        unsigned long span;				// 当前指针跨越节点数
     } level[];
 } zskiplistNode;
-
+// 整个跳表物理上只有基层节点链表
+// 往上全都是指针盖楼
 typedef struct zskiplist {
     struct zskiplistNode *header, *tail;
     unsigned long length;
@@ -1670,6 +1671,8 @@ zskiplist *zslCreate(void);
 void zslFree(zskiplist *zsl);
 zskiplistNode *zslInsert(zskiplist *zsl, double score, sds ele);
 unsigned char *zzlInsert(unsigned char *zl, sds ele, double score);
+// 从zsl上删除匹配score && ele的节点，如果node参数不为空，将节点附着其上返回以作重用
+// 否则释放节点内存
 int zslDelete(zskiplist *zsl, double score, sds ele, zskiplistNode **node);
 zskiplistNode *zslFirstInRange(zskiplist *zsl, zrangespec *range);
 zskiplistNode *zslLastInRange(zskiplist *zsl, zrangespec *range);

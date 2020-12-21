@@ -67,17 +67,18 @@ typedef struct dictType {
 /* This is our hash table structure. Every dictionary has two of this as we
  * implement incremental rehashing, for the old to the new table. */
 typedef struct dictht {
-    dictEntry **table;
-    unsigned long size;
-    unsigned long sizemask;
-    unsigned long used;
+    dictEntry **table;      // 第一维是计算出来的哈希下标，第二维就是哈希值相同的链表
+    unsigned long size;     // 空间大小(used有可能>=size)
+    unsigned long sizemask; // 把一个int & sizemask来保证落在范围[0, size-1]内
+    unsigned long used;     // 已使用数
 } dictht;
 
 typedef struct dict {
     dictType *type;
     void *privdata;
-    dictht ht[2];
-    long rehashidx; /* rehashing not in progress if rehashidx == -1 */
+    dictht ht[2];   // [0]存放正式数据，[1]存放新申请的空间，等待[0]的数据重新被哈希
+    long rehashidx; /* rehashing not in progress if rehashidx == -1*/
+                    // 重新哈希的时候用来辅助记录下标用的
     unsigned long iterators; /* number of iterators currently running */
 } dict;
 
@@ -87,7 +88,7 @@ typedef struct dict {
  * should be called while iterating. */
 typedef struct dictIterator {
     dict *d;
-    long index;
+    long index;         // 用于table的下标
     int table, safe;
     dictEntry *entry, *nextEntry;
     /* unsafe iterator fingerprint for misuse detection. */
@@ -152,13 +153,16 @@ dict *dictCreate(dictType *type, void *privDataPtr);
 int dictExpand(dict *d, unsigned long size);
 int dictAdd(dict *d, void *key, void *val);
 dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing);
+// 类似于c++，map的[]重载
 dictEntry *dictAddOrFind(dict *d, void *key);
 int dictReplace(dict *d, void *key, void *val);
 int dictDelete(dict *d, const void *key);
+// 把元素剥离但不销毁
 dictEntry *dictUnlink(dict *ht, const void *key);
 void dictFreeUnlinkedEntry(dict *d, dictEntry *he);
 void dictRelease(dict *d);
 dictEntry * dictFind(dict *d, const void *key);
+// 获取一个entry的value
 void *dictFetchValue(dict *d, const void *key);
 int dictResize(dict *d);
 dictIterator *dictGetIterator(dict *d);
@@ -174,11 +178,17 @@ void dictEmpty(dict *d, void(callback)(void*));
 void dictEnableResize(void);
 void dictDisableResize(void);
 int dictRehash(dict *d, int n);
+// 在ms时间内，以100数量/次的方式重新哈希
 int dictRehashMilliseconds(dict *d, int ms);
 void dictSetHashFunctionSeed(uint8_t *seed);
 uint8_t *dictGetHashFunctionSeed(void);
+// 按次遍历dict,每次调用步进一次，返回值作为下一次步进的传参
+// 每次调用包含以下操作
+//      找到对应的哈希下标之后，调用bucketfn
+//      对第二维的链表遍历，针对每个元素调用fn
 unsigned long dictScan(dict *d, unsigned long v, dictScanFunction *fn, dictScanBucketFunction *bucketfn, void *privdata);
 uint64_t dictGetHash(dict *d, const void *key);
+// 在dict中通过hash到的池子里面查找是存在oldptr
 dictEntry **dictFindEntryRefByPtrAndHash(dict *d, const void *oldptr, uint64_t hash);
 
 /* Hash table types */

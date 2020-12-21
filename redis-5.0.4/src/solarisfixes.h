@@ -33,6 +33,8 @@
 #if defined(__GNUC__)
 #include <math.h>
 #undef isnan
+// 判断数字x是否有效
+// 当x是表达式sqrt(-1)时，结果值是-nan(int)，于是不等号成立
 #define isnan(x) \
      __extension__({ __typeof (x) __x_a = (x); \
      __builtin_expect(__x_a != __x_a, 0); })

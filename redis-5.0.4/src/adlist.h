@@ -71,10 +71,13 @@ typedef struct list {
 
 /* Prototypes */
 list *listCreate(void);
+// 释放链表
 void listRelease(list *list);
+// 清空链表
 void listEmpty(list *list);
 list *listAddNodeHead(list *list, void *value);
 list *listAddNodeTail(list *list, void *value);
+// 插入value节点到old_node的前面或者后面（根据after决定)
 list *listInsertNode(list *list, listNode *old_node, void *value, int after);
 void listDelNode(list *list, listNode *node);
 listIter *listGetIterator(list *list, int direction);
@@ -82,10 +85,15 @@ listNode *listNext(listIter *iter);
 void listReleaseIterator(listIter *iter);
 list *listDup(list *orig);
 listNode *listSearchKey(list *list, void *key);
+// 返回正向或者逆向第index个节点
 listNode *listIndex(list *list, long index);
+// 正向迭代器重新指向头部
 void listRewind(list *list, listIter *li);
+// 逆向迭代器重新指向尾部
 void listRewindTail(list *list, listIter *li);
+// 把尾部节点移动到头部
 void listRotate(list *list);
+// 把o链表拼接到l链表尾部，然后清空o链表
 void listJoin(list *l, list *o);
 
 /* Directions for iterators */
