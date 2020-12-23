@@ -81,6 +81,9 @@
  * because there are high probabilities that HLLADD operations don't
  * modify the actual data structure and hence the approximated cardinality).
  *
+ * (most significant bit 最高有效位 MSB)
+ * (least significant bit 最低有效位 LSB)
+ *
  * When the most significant bit in the most significant byte of the cached
  * cardinality is set, it means that the data structure was modified and
  * we can't reuse the cached value that must be recomputed.
@@ -140,7 +143,7 @@
  * ZERO:19    (Registers 1001-1019 set to 0)
  * VAL:3,2    (2 registers set to value 3, that is registers 1020,1021)
  * XZERO:15362 (Registers 1022-16383 set to 0)
- *
+ * 7 bytes = 2 + 1 + 1 + 1 + 2
  * In the example the sparse representation used just 7 bytes instead
  * of 12k in order to represent the HLL registers. In general for low
  * cardinality there is a big win in terms of space efficiency, traded
@@ -179,11 +182,18 @@
  * configured via the define server.hll_sparse_max_bytes.
  */
 
+// HyperLogLog算法原理
+//      https://www.cnblogs.com/linguanh/p/10460421.html
+//      https://blog.csdn.net/ailiandeziwei/article/details/104830389/
+//      http://content.research.neustar.biz/blog/hll.html
+// 用12k内存统计2^64个long long数据(如果直接存储只能放下12*1024/8 = 1536个数)
+
 struct hllhdr {
-    char magic[4];      /* "HYLL" */
-    uint8_t encoding;   /* HLL_DENSE or HLL_SPARSE. */
+    char magic[4];      /* "HYLL" 头部标记，hyperloglog的缩写*/
+    uint8_t encoding;   /* HLL_DENSE or HLL_SPARSE. 稀疏/密集存储结构标记，也就是E */
+                        // 密集型结构有16384个桶拼接而成，每个桶64bit
     uint8_t notused[3]; /* Reserved for future use, must be zero. */
-    uint8_t card[8];    /* Cached cardinality, little endian. */
+    uint8_t card[8];    /* Cached cardinality, little endian. 基数缓存，最高一位标记缓存是否有效，其余63位存储基数值*/
     uint8_t registers[]; /* Data bytes. */
 };
 
@@ -320,7 +330,7 @@ static char *invalid_hll_err = "-INVALIDOBJ Corrupted HLL object detected\r\n";
  * it by 8-fb bits, and invert it.
  *
  *   +--------+
- *   |00111111|  <- "mask" set at 2&6-1
+ *   |00111111|  <- "mask" set at 2^6-1
  *   |00001111|  <- "mask" after the right shift by 8-fb = 2 bits
  *   |11110000|  <- "mask" after bitwise not.
  *   +--------+
@@ -336,14 +346,15 @@ static char *invalid_hll_err = "-INVALIDOBJ Corrupted HLL object detected\r\n";
 
 /* Store the value of the register at position 'regnum' into variable 'target'.
  * 'p' is an array of unsigned bytes. */
+// regnum是6位端的序号
 #define HLL_DENSE_GET_REGISTER(target,p,regnum) do { \
     uint8_t *_p = (uint8_t*) p; \
-    unsigned long _byte = regnum*HLL_BITS/8; \
-    unsigned long _fb = regnum*HLL_BITS&7; \
+    unsigned long _byte = regnum*HLL_BITS/8; /* 计算字节位置 */\
+    unsigned long _fb = regnum*HLL_BITS&7; /* 计算字节从右往左首个有效位偏移量 */\
     unsigned long _fb8 = 8 - _fb; \
     unsigned long b0 = _p[_byte]; \
     unsigned long b1 = _p[_byte+1]; \
-    target = ((b0 >> _fb) | (b1 << _fb8)) & HLL_REGISTER_MAX; \
+    target = ((b0 >> _fb) | (b1 << _fb8)) & HLL_REGISTER_MAX; /* b0拼接在右侧低位,b1拼接在左侧高位 */\
 } while(0)
 
 /* Set the value of the register at position 'regnum' to 'val'.
@@ -354,10 +365,10 @@ static char *invalid_hll_err = "-INVALIDOBJ Corrupted HLL object detected\r\n";
     unsigned long _fb = regnum*HLL_BITS&7; \
     unsigned long _fb8 = 8 - _fb; \
     unsigned long _v = val; \
-    _p[_byte] &= ~(HLL_REGISTER_MAX << _fb); \
-    _p[_byte] |= _v << _fb; \
-    _p[_byte+1] &= ~(HLL_REGISTER_MAX >> _fb8); \
-    _p[_byte+1] |= _v >> _fb8; \
+    _p[_byte] &= ~(HLL_REGISTER_MAX << _fb); /*保留低字节的右侧临位数据*/\
+    _p[_byte] |= _v << _fb; /*把_v的右侧设置到低字节的左侧数据*/\
+    _p[_byte+1] &= ~(HLL_REGISTER_MAX >> _fb8); /*保留高字节的左侧临位数据*/\
+    _p[_byte+1] |= _v >> _fb8; /*把_v的左侧设置到高字节的右侧数据*/\
 } while(0)
 
 /* Macros to access the sparse representation.
