@@ -39,12 +39,16 @@ typedef struct intset {
 } intset;
 
 intset *intsetNew(void);
+// 插入成功success=1，已存在success=0
 intset *intsetAdd(intset *is, int64_t value, uint8_t *success);
+// 删除成功success=1，不存在success=0
 intset *intsetRemove(intset *is, int64_t value, int *success);
 uint8_t intsetFind(intset *is, int64_t value);
 int64_t intsetRandom(intset *is);
 uint8_t intsetGet(intset *is, uint32_t pos, int64_t *value);
+// 已经使用的数据长度
 uint32_t intsetLen(const intset *is);
+// 全部长度
 size_t intsetBlobLen(intset *is);
 
 #ifdef REDIS_TEST

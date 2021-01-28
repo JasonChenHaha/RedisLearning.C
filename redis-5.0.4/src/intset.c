@@ -189,6 +189,7 @@ static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
     return is;
 }
 
+// 将intset中(from,end)长度的数据移动到to位置
 static void intsetMoveTail(intset *is, uint32_t from, uint32_t to) {
     void *src, *dst;
     uint32_t bytes = intrev32ifbe(is->length)-from;
@@ -231,7 +232,9 @@ intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
             return is;
         }
 
+        // resize并不会对is->length+1
         is = intsetResize(is,intrev32ifbe(is->length)+1);
+        // 如果发现插入位置pos在中间，需要将后面的数据向后移动一位以腾出一个空位
         if (pos < intrev32ifbe(is->length)) intsetMoveTail(is,pos,pos+1);
     }
 
