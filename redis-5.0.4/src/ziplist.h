@@ -35,7 +35,9 @@
 #define ZIPLIST_TAIL 1
 
 unsigned char *ziplistNew(void);
+// 合并两个压缩表（将短的拼到长的后面，短的内存销毁）
 unsigned char *ziplistMerge(unsigned char **first, unsigned char **second);
+// 在端点位置插入字符串(s, slen), where决定是头部还是尾部
 unsigned char *ziplistPush(unsigned char *zl, unsigned char *s, unsigned int slen, int where);
 unsigned char *ziplistIndex(unsigned char *zl, int index);
 unsigned char *ziplistNext(unsigned char *zl, unsigned char *p);
