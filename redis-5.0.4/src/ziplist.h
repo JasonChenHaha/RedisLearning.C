@@ -39,11 +39,17 @@ unsigned char *ziplistNew(void);
 unsigned char *ziplistMerge(unsigned char **first, unsigned char **second);
 // 在端点位置插入字符串(s, slen), where决定是头部还是尾部
 unsigned char *ziplistPush(unsigned char *zl, unsigned char *s, unsigned int slen, int where);
+// 返回指定序号的数据块地址，如果index是负数，逆向计算，如果没找到返回NULL
 unsigned char *ziplistIndex(unsigned char *zl, int index);
+// 返回下一个数据块地址，如果到边界返回NULL
 unsigned char *ziplistNext(unsigned char *zl, unsigned char *p);
+// 返回上一个数据块地址，如果到边界返回NULL
 unsigned char *ziplistPrev(unsigned char *zl, unsigned char *p);
+// 从数据块中读取字符串或者整数
 unsigned int ziplistGet(unsigned char *p, unsigned char **sval, unsigned int *slen, long long *lval);
+// 在p数据块位置插入数据s
 unsigned char *ziplistInsert(unsigned char *zl, unsigned char *p, unsigned char *s, unsigned int slen);
+// 删除p位置数据块，返回删除后新的p位置
 unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p);
 unsigned char *ziplistDeleteRange(unsigned char *zl, int index, unsigned int num);
 unsigned int ziplistCompare(unsigned char *p, unsigned char *s, unsigned int slen);
