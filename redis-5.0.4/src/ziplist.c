@@ -1211,6 +1211,7 @@ unsigned int ziplistLen(unsigned char *zl) {
     if (intrev16ifbe(ZIPLIST_LENGTH(zl)) < UINT16_MAX) {
         len = intrev16ifbe(ZIPLIST_LENGTH(zl));
     } else {
+        // 如果长度是UNIT16_MAX，代表还未进行过统计，这里需要统计
         unsigned char *p = zl+ZIPLIST_HEADER_SIZE;
         while (*p != ZIP_END) {
             p += zipRawEntryLength(p);

@@ -51,11 +51,17 @@ unsigned int ziplistGet(unsigned char *p, unsigned char **sval, unsigned int *sl
 unsigned char *ziplistInsert(unsigned char *zl, unsigned char *p, unsigned char *s, unsigned int slen);
 // 删除p位置数据块，返回删除后新的p位置
 unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p);
+// 删除范围(index, num)的数据块
 unsigned char *ziplistDeleteRange(unsigned char *zl, int index, unsigned int num);
+// 比较(p数据块的数据)和(s字符串)
 unsigned int ziplistCompare(unsigned char *p, unsigned char *s, unsigned int slen);
+// 按skip步进数，在p位置开始查找vstr匹配数据块
 unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int vlen, unsigned int skip);
+// 获得ziplist元素数
 unsigned int ziplistLen(unsigned char *zl);
+// 获得ziplist字节长度
 size_t ziplistBlobLen(unsigned char *zl);
+// 格式化打印ziplist
 void ziplistRepr(unsigned char *zl);
 
 #ifdef REDIS_TEST
