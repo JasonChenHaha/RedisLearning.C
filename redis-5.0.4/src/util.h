@@ -49,6 +49,7 @@ int string2ll(const char *s, size_t slen, long long *value);
 int string2l(const char *s, size_t slen, long *value);
 int string2ld(const char *s, size_t slen, long double *dp);
 int d2string(char *buf, size_t len, double value);
+// 把value转化成字符串放到buf中,humanfriendly控制格式是否易读
 int ld2string(char *buf, size_t len, long double value, int humanfriendly);
 sds getAbsolutePath(char *filename);
 unsigned long getTimeZone(void);

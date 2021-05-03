@@ -254,6 +254,7 @@ sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen);
 /* Low level functions exposed to the user API */
 sds sdsMakeRoomFor(sds s, size_t addlen);
 void sdsIncrLen(sds s, int incr);
+// 删除sds尾部的未使用空间
 sds sdsRemoveFreeSpace(sds s);
 size_t sdsAllocSize(sds s);
 void *sdsAllocPtr(sds s);

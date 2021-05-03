@@ -521,6 +521,7 @@ int ld2string(char *buf, size_t len, long double value, int humanfriendly) {
     size_t l;
 
     if (isinf(value)) {
+        // 无穷数
         /* Libc in odd systems (Hi Solaris!) will format infinite in a
          * different way, so better to handle it in an explicit way. */
         if (len < 5) return 0; /* No room. 5 is "-inf\0" */
@@ -532,6 +533,7 @@ int ld2string(char *buf, size_t len, long double value, int humanfriendly) {
             l = 4;
         }
     } else if (humanfriendly) {
+        // 易读格式
         /* We use 17 digits precision since with 128 bit floats that precision
          * after rounding is able to represent most small decimal numbers in a
          * way that is "non surprising" for the user (that is, most small
@@ -540,6 +542,7 @@ int ld2string(char *buf, size_t len, long double value, int humanfriendly) {
         l = snprintf(buf,len,"%.17Lf", value);
         if (l+1 > len) return 0; /* No room. */
         /* Now remove trailing zeroes after the '.' */
+        // 移除小数点后的“尾部”0
         if (strchr(buf,'.') != NULL) {
             char *p = buf+l-1;
             while(*p == '0') {
